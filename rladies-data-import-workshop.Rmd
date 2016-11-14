@@ -1,0 +1,321 @@
+---
+title: "R-Ladies RTP Getting Data into R workshop"
+author: "Elaine McVey"
+date: "November 14, 2016"
+output: ioslides_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Welcome to R-Ladies RTP!
+
+# Welcome to TransLoc!
+
+## Outline
+
+- Data sources
+- Controlling the source
+- Data validation and cleanup
+- Understanding read_csv
+- R and databases
+- Problem solving
+
+## Materials
+
+- All source code at https://github.com/rladies/rtp-data-import-11-13-16
+
+<!-- ## Datasets -->
+
+<!-- - Datasets for today are here: https://www.dropbox.com/s/zhmn02ti0ggxdj7/rladies_ggplot2_datasets.rda?dl=1 -->
+
+<!--   - You can download them from R: -->
+
+<!--       `download.file( -->
+<!--       'https://www.dropbox.com/s/zhmn02ti0ggxdj7/ -->
+<!--        rladies_ggplot2_datasets.rda?dl=1', -->
+<!--               'rladies_ggplot2_datasets.rda')` -->
+
+<!--       `attach('rladies_ggplot2_datasets.rda')` -->
+  
+## (Some) Data Sources {.smaller}
+
+ Source                               Package     
+ ------                               ------- 
+ flat files (csv, txt)                readr
+ databases                            DBI/dplyr/DB-specifics
+ JSON/XML                             jsonlite/xml2
+ APIs                                 httr
+ Web scraping                         rvest
+ Domain-specific                      from ROpenSci/Bioconductor
+ Stats formats (SAS, SPSS, Stata)     haven
+ Matlab                               R.matlab
+ Excel                                readxl/*jailbreakr*
+ Google Sheets                        googlesheets
+ PDFs                                 *tabulizer* (Tabula)
+
+## Controlling the Source
+
+**People wrangling over data wrangling!**
+
+## Suggestions
+
+- HAVE REQUIREMENTS
+- naming conventions
+- require tidy format
+- data validation tools (spreadsheets)
+- data testing upon import
+
+## Professionalizing Data Import 
+
+**Meet the Data Engineer...**
+
+## Data Validation and Cleanup
+
+**NEVER ASSUME**
+
+## Suggestions
+
+- Inspect all variable types
+- Inspect contents - variable by variable and cross-tabs (table, glimpse, etc.)
+- Check number of rows
+- Look for missing values
+- Build checks into the code
+- If the data can change, consider testing! (testthat)
+  
+## R and Databases
+
+R can connect to many databases - and with dplyr, no SQL!!
+
+https://cran.r-project.org/web/packages/dplyr/vignettes/databases.html
+
+## readr (flat files)
+
+readr handles much more than csv
+
+_readr vignettes_
+
+https://github.com/tidyverse/readr/blob/master/vignettes/readr.Rmd
+
+https://cran.r-project.org/web/packages/readr/vignettes/column-types.html
+
+
+## Loading readr
+
+```{r}
+library(readr)
+library(tidyverse)
+```
+
+
+## Digging into read_csv
+
+_R for Data Science_
+
+http://r4ds.had.co.nz/data-import.html
+  
+## read_csv
+
+flat file > tibble
+
+## But what about read.csv?
+
+- faster
+- better defaults
+- reproducible across OS
+  
+## read_csv basics
+
+In the ideal case:
+
+```
+library(readr) # or library(tidyverse)
+my_df <- read_csv('my_file.csv')
+```
+
+But...
+
+## What read_csv does
+
+1. Makes a rectangle of strings
+2. Determines column types
+3. Parses the columns into types
+  
+## Guessing
+
+```read_csv``` tries to guess what the column types are using the first 1000 rows
+
+If it has trouble, it will tell you
+  
+## Parsing columns (vectors)
+
+- ```parse_logical()``` (simple)
+- ```parse_integer()```  (simple)
+- ```parse_double()``` (strict)
+- ```parse_number()``` (flexible)
+- ```parse_character()``` (encodings)
+- ```parse_factor()``` (hi statisticians)
+- ```parse_datetime()``` (ugh)
+- ```parse_date()``` (ugh)
+- ```parse_time()``` (ugh)
+ 
+## Let's try it!
+
+```{r}
+mtcars_df <- read_csv(readr_example('mtcars.csv'))
+``` 
+  
+## col_types
+
+Specify column types:
+
+- with a string of single characters: ```col_types = "dc__d"```
+- with ```cols()```, set by column  name
+  
+- Or, ```read_csv``` guesses
+
+
+## Best practice
+
+```{r}
+mtcars_df <- read_csv(readr_example('mtcars.csv'),
+                      col_types = cols(
+                        mpg = col_double(),
+                        cyl = col_integer(),
+                        disp = col_double(),
+                        hp = col_integer(),
+                        drat = col_double(),
+                        wt = col_double(),
+                        qsec = col_double(),
+                        vs = col_integer(),
+                        am = col_integer(),
+                        gear = col_integer(),
+                        carb = col_integer()
+                      ))
+``` 
+
+## Let's try something tougher
+
+```{r}
+challenge <- read_csv(readr_example("challenge.csv"))
+```
+
+## Using problems()
+
+```{r}
+problems(challenge)
+```
+
+## Work through problems one column at a time...
+
+```{r}
+challenge <- read_csv(
+  readr_example("challenge.csv"), 
+  col_types = cols(
+    x = col_integer(),
+    y = col_character()
+  )
+)
+```
+
+## Manually change col_types
+
+```{r}
+challenge <- read_csv(
+  readr_example("challenge.csv"), 
+  col_types = cols(
+    x = col_double(),
+    y = col_character()
+  )
+)
+```
+
+## Now how are we doing?
+  
+```{r}
+head(challenge)
+```
+
+Hmmmm....
+  
+## Now how are we doing?
+
+```{r}
+tail(challenge)
+```
+  
+## Set date type
+
+```{r}
+challenge <- read_csv(
+  readr_example("challenge.csv"), 
+  col_types = cols(
+    x = col_double(),
+    y = col_date()
+  )
+)
+```
+
+## Success :)
+
+```{r}
+tail(challenge)
+```
+
+## Other strategies for solving problems
+
+Increase guess information:
+
+```
+challenge2 <- read_csv(readr_example("challenge.csv"), guess_max = 1001)
+```
+
+Read everything in as character and work from there:
+
+```
+challenge2 <- read_csv(readr_example("challenge.csv"), 
+                          col_types = cols(.default = col_character())
+                      ) 
+```
+  
+## read_csv Arguments
+
+```
+read_csv(file, 
+         col_names = TRUE, 
+         col_types = NULL,
+         locale = default_locale(), 
+         na = c("", "NA"), 
+         quoted_na = TRUE,
+         comment = "", 
+         trim_ws = TRUE, 
+         skip = 0, 
+         n_max = Inf,
+         guess_max = min(1000, n_max), 
+         progress = interactive()
+         )
+```
+
+## Problem Solving
+
+What are your data import challenges?
+  
+## Vote!
+
+2017 meetup topics?
+
+Format suggestions?
+
+Come present!!
+  
+## Next Meetup
+
+- Tuesday, December 13th
+- Same location - TransLoc
+- RMarkdown!
+
+## Networking
+
+Serena's
+5311 S Miami Blvd
